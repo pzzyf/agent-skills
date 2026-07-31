@@ -1,6 +1,6 @@
 ---
 name: spec-driven-dev
-description: Use for greenfield or well-scoped feature work where the task originated from a product idea or rough ask and would benefit from a disciplined, document-first pipeline: requirements → spec → independent review → plan → independent review → chunked TDD implementation → code review → acceptance. Triggers when the user says "按 SOP 开发", "spec 驱动", "文档先行", "先写规格再写代码", "spec-driven", "从需求开始实现", or describes a new product/feature and expects a structured handoff from Idea to delivery rather than jumping straight into code.
+description: "Use for greenfield or well-scoped feature work where the task originated from a product idea or rough ask and would benefit from a disciplined, document-first pipeline: requirements → spec → independent review → plan → independent review → chunked TDD implementation → code review → acceptance. Triggers when the user says 按SOP开发, spec驱动, 文档先行, 先写规格再写代码, spec-driven, 从需求开始实现, or describes a new product/feature and expects a structured handoff from Idea to delivery rather than jumping straight into code."
 ---
 
 # Spec-Driven Development
