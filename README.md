@@ -6,7 +6,7 @@ Personal collection of [Agent Skills](https://agentskills.io) for coding agents 
 
 | Skill | What it does |
 |---|---|
-| [`spec-driven-dev`](./skills/spec-driven-dev) | Document-first delivery SOP: requirements → spec → review → plan → review → chunked TDD → code review → acceptance. |
+| [`spec-driven-dev`](./skills/spec-driven-dev) | Document-first delivery SOP: explore → requirements → spec (milestones + decision records) → review → per-milestone plans → review → chunked TDD → code review → acceptance. |
 
 ## Install
 
