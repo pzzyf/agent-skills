@@ -18,13 +18,32 @@
 
 [Repository rules, confirmed choices, safety boundaries, and explicit non-scope.]
 
-## Task-Type Verification Strategy
+## Phased Implementation Strategy
 
-[Select applicable verification leads; do not force a meaningless unit test.]
+[Keep one milestone plan. Divide it into ordered phases/chunks; each phase contains multiple typed tasks/steps and ends with an observable checkpoint plus a human review gate. Later phases stay locked until approval.]
+
+### PHASE-{{MILESTONE}}-001 — [Phase title]
+
+- Status: pending
+- Sequence: 1
+- Depends on: none
+- Goal: [independently observable phase outcome]
+- Acceptance: AC-001
+- Tasks: TASK-{{MILESTONE}}-001
+- Verification checkpoint: [aggregate commands/interactions, visible expected result, and common failure signals]
+- Checkpoint revision: pending
+- Human review procedure: [short reproducible steps and exact artifacts the human must inspect]
+- Human review status: pending
+- Human reviewer: none
+- Human reviewed at: none
+- Human review revision: pending
+- Human review evidence: pending
+- Human review note: pending
 
 ### TASK-{{MILESTONE}}-001 — [Task title]
 
 - Status: pending
+- Phase: PHASE-{{MILESTONE}}-001
 - Acceptance: AC-001
 - Verification class: pending
 - Dependencies: none
@@ -49,9 +68,17 @@
 - [ ] Run actual-effect checks.
 - [ ] Correct failures and rerun affected checks.
 - [ ] Record current evidence.
-- [ ] Mark task state and inspect owned diff.
+- [ ] Mark the verified task `completed` and inspect owned diff.
 - [ ] Create an authorized commit/checkpoint, or leave coherent user-managed state.
+
+### Phase Checkpoint and Human Gate
+
+- [ ] Complete every task owned by this phase and reconcile its evidence.
+- [ ] Run the phase verification checkpoint and capture the observable result.
+- [ ] Set the phase to `awaiting-human-review` and present the aggregate review packet.
+- [ ] Pause every later phase until explicit human approval.
+- [ ] Record approval and set `approved`, or record rejection, set `reopened`, and reopen affected tasks.
 
 ## Milestone Definition of Done
 
-[Map every owned AC to a task, current evidence method, review gate, and full regression/effect check.]
+[Map every owned AC to phases/tasks, current evidence method, every phase gate, and full regression/effect check.]

@@ -46,6 +46,13 @@ pending → implementing → verifying → fixing ↺ → completed
 completed → reopened when evidence becomes stale or downstream verification fails
 ```
 
+Use implementation-phase states:
+
+```text
+pending → executing → verifying → awaiting-human-review → approved → next phase
+                                      └→ rejected → reopened → affected tasks ↺
+```
+
 Keep evidence outcome and freshness orthogonal:
 
 - `Outcome: passed | failed | inconclusive | not-run | not-applicable | accepted-risk`
@@ -54,7 +61,7 @@ Keep evidence outcome and freshness orthogonal:
 
 Use `not-run` plus a blocker only when evidence cannot be collected; include the exact resume condition. Use `not-applicable` only with a concrete reason. Use `accepted-risk` only when the user explicitly authorized the exact unverified or failed condition; include the authorization and amendment when the acceptance contract changes.
 
-Never aggregate failed, inconclusive, not-run, stale, blocked, or accepted-risk evidence into `completed`. A workflow may stop safely in a blocked/cancelled/accepted-risk state without claiming success.
+Never aggregate failed, inconclusive, not-run, stale, blocked, or accepted-risk evidence into a completed task or approved phase. `awaiting-human-review` means AI verification and the phase checkpoint have converged, but the next phase remains locked. A workflow may stop safely in a blocked/cancelled/accepted-risk state without claiming success.
 
 ## Preflight
 
@@ -124,7 +131,14 @@ Specify technology-neutral contracts before framework-specific structure:
 
 Apply only the relevant domain adapter. Mark a field `N/A` with a reason rather than forcing Web, TypeScript, persistence, or UI concepts onto unrelated work.
 
-Plan each milestone from its frozen spec revision. Give every task:
+Plan each milestone from its frozen spec revision. Divide it into ordered implementation phases. Each phase must:
+
+- have a stable `PHASE-M<n>-*` ID, goal, owned ACs/tasks, dependencies, and explicit sequence;
+- end in an independently observable checkpoint appropriate to its requirement types;
+- define reproducible human review steps and the evidence/artifacts to inspect;
+- remain strictly serial with later phases; express genuinely parallel work as tasks inside one phase or as separately governed milestones.
+
+Within each phase, give every task:
 
 - stable ID, state, owning acceptance criteria, dependencies, and owned paths;
 - create/modify/delete scope and interfaces/contracts;
@@ -192,15 +206,24 @@ while any owned criterion is failed, unknown, unverified, contradicted, or stale
     refresh sanitized evidence
 ```
 
+After each task loop converges, record current evidence and mark that task `completed`; this alone does not unlock the next phase. When every task in the current phase is complete, run the phase checkpoint and present a phase review packet with:
+
+- the phase's linked REQ/AC, tasks, and promised observable outcome;
+- the exact phase revision and aggregate owned diff;
+- automated checks and actual-effect evidence, including expected versus actual results;
+- sanitized artifacts, residual risks, and short reproducible human review steps.
+
+Set the phase to `awaiting-human-review` and pause every later phase. Approval must come from a human after seeing this packet and must name the exact phase candidate. Do not infer approval from silence, the initial requirements confirmation, a generic “continue,” an AI/subagent review, or final milestone acceptance. Record `Human review status: approved`, `Human reviewer`, `Human reviewed at`, `Human review revision`, `Human review evidence`, and `Human review note`. On rejection, record feedback, set the phase to `reopened`, reopen affected tasks, and re-enter their loops. If covered source, configuration, dependency, oracle, AC, checkpoint, or evidence changes afterward, invalidate the phase approval and return to `awaiting-human-review` after reconvergence.
+
 Finalize a passing task in this exact order:
 
 1. Finish automated and actual-effect verification.
 2. Write evidence and a digest of the covered implementation/configuration paths or candidate tree. Do not try to embed the future commit SHA inside the commit that creates the evidence.
-3. Mark task `completed`; update next safe action and cleanup state.
+3. Mark the task `completed`; update next safe action and cleanup state.
 4. Inspect owned working/staged diff and confirm no user paths are included.
 5. Preserve a coherent recoverable working-tree state. If authorized, create one commit/checkpoint containing code, task state, and evidence; add task/evidence trailers when repository convention permits. During reconciliation/acceptance, keep the per-task subject digest and set its `Candidate mapping` to the accepted candidate revision.
 
-If the commit/checkpoint fails after step 3, preserve state and evidence, record the failure, and resume reconciliation. Do not rerun a successful non-idempotent action merely because Git failed.
+If the commit/checkpoint fails after step 5, preserve state and evidence, record the failure, and resume reconciliation. Do not rerun a successful non-idempotent action merely because Git failed.
 
 ## Amendments and Invalidation
 
@@ -284,7 +307,7 @@ On resume:
 
 1. Read repository instructions and all authoritative initiative artifacts.
 2. Inspect current Git/non-Git revision, dirty/index state, and task-owned paths.
-3. Reconcile workflow/task statuses against commits/checkpoints, task/evidence trailers, subject digests, acceptance mappings, and review baselines.
+3. Reconcile workflow/phase/task statuses against human phase verdicts, commits/checkpoints, task/evidence trailers, subject digests, acceptance mappings, and review baselines.
 4. Query any prepared/unknown external operation before acting.
 5. Reconcile active processes, ports, temporary resources, and cleanup state.
 6. Mark contradicted evidence stale and reopen affected tasks.

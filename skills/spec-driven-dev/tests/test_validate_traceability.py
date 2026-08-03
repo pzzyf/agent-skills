@@ -142,8 +142,26 @@ The existing public function returns its stable value.
 - Release revision: not-applicable
 - Deployed revision: not-applicable
 
+## PHASE-M1-001 — Implement and verify the stable value
+- Status: approved
+- Sequence: 1
+- Depends on: none
+- Goal: The stable value is observable through the public function.
+- Acceptance: AC-001
+- Tasks: TASK-M1-001
+- Verification checkpoint: Run the focused test and inspect the observed return value.
+- Checkpoint revision: sha256:{CANDIDATE}
+- Human review procedure: Inspect the focused assertion and observed return value.
+- Human review status: approved
+- Human reviewer: user
+- Human reviewed at: 2026-08-03T12:08:00Z
+- Human review revision: sha256:{CANDIDATE}
+- Human review evidence: EVID-001
+- Human review note: The phase checkpoint is approved.
+
 ## TASK-M1-001 — Implement the stable value
 - Status: completed
+- Phase: PHASE-M1-001
 - Acceptance: AC-001
 - Verification class: unit
 - Dependencies: none
@@ -184,8 +202,26 @@ The existing public function returns its stable value.
 - Release revision: not-applicable
 - Deployed revision: not-applicable
 
+## PHASE-M2-001 — Reconcile and verify the final candidate
+- Status: approved
+- Sequence: 1
+- Depends on: none
+- Goal: The final candidate is reconciled and observable.
+- Acceptance: AC-001
+- Tasks: TASK-M2-001
+- Verification checkpoint: Run the focused test against the reconciled candidate.
+- Checkpoint revision: sha256:{CANDIDATE}
+- Human review procedure: Inspect the focused assertion and final reconciled return value.
+- Human review status: approved
+- Human reviewer: user
+- Human reviewed at: 2026-08-03T12:09:00Z
+- Human review revision: sha256:{CANDIDATE}
+- Human review evidence: EVID-002
+- Human review note: The phase checkpoint is approved.
+
 ## TASK-M2-001 — Reconcile the final candidate
 - Status: completed
+- Phase: PHASE-M2-001
 - Acceptance: AC-001
 - Verification class: unit
 - Dependencies: TASK-M1-001
@@ -222,6 +258,7 @@ The existing public function returns its stable value.
 - Workflow status: implemented
 - Technical options status: not-applicable
 - Current milestone: M1
+- Current phase: none
 - Current task: none
 - Base revision: sha256:{BASE}
 - Initial dirty paths: none
@@ -267,9 +304,28 @@ Return the stable documented value; do not change unrelated interfaces.
 
 ## Milestone M1
 
+### PHASE-M1-001 — Implement and verify the stable value
+
+- Status: approved
+- Sequence: 1
+- Depends on: none
+- Goal: The stable value is observable through the public function.
+- Acceptance: AC-001
+- Tasks: TASK-M1-001
+- Verification checkpoint: Run the focused test and inspect the observed return value.
+- Checkpoint revision: sha256:{CANDIDATE}
+- Human review procedure: Inspect the focused assertion and observed return value.
+- Human review status: approved
+- Human reviewer: user
+- Human reviewed at: 2026-08-03T12:08:00Z
+- Human review revision: sha256:{CANDIDATE}
+- Human review evidence: EVID-001
+- Human review note: The phase checkpoint is approved.
+
 ### TASK-M1-001 — Implement the stable value
 
 - Status: completed
+- Phase: PHASE-M1-001
 - Acceptance: AC-001
 - Verification class: unit
 - Dependencies: none
@@ -564,6 +620,67 @@ Release and deployment are outside this implemented target.
         result = self.run_validator("--strict")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_completed_phase_requires_explicit_human_approval(self) -> None:
+        change = self.root / "change.md"
+        self.set_definition_field(change, "PHASE-M1-001", "Human review status", "pending")
+        result = self.run_validator("--strict")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("missing-human-phase-approval", result.stdout)
+
+    def test_human_review_metadata_update_does_not_invalidate_plan_review(self) -> None:
+        change = self.root / "change.md"
+        self.set_definition_field(change, "PHASE-M1-001", "Human review note", "Approved after repeating the documented phase checkpoint.")
+        result = self.run_validator("--strict")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_human_approval_must_match_cited_phase_evidence(self) -> None:
+        change = self.root / "change.md"
+        self.set_definition_field(change, "PHASE-M1-001", "Human review revision", "sha256:" + "c" * 64)
+        result = self.run_validator("--strict")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("human-review-revision-mismatch", result.stdout)
+
+    def test_later_phase_cannot_start_before_prior_human_approval(self) -> None:
+        change = self.root / "change.md"
+        with change.open("a", encoding="utf-8") as handle:
+            handle.write(
+                f"""
+
+### PHASE-M1-002 — Follow-up phase
+- Status: pending
+- Sequence: 2
+- Depends on: PHASE-M1-001
+- Goal: Exercise the gated follow-up phase.
+- Acceptance: AC-001
+- Tasks: TASK-M1-002
+- Verification checkpoint: Run the focused follow-up check.
+- Checkpoint revision: pending
+- Human review procedure: Inspect the follow-up result.
+- Human review status: pending
+- Human reviewer: none
+- Human reviewed at: none
+- Human review revision: pending
+- Human review evidence: pending
+- Human review note: pending
+
+### TASK-M1-002 — Follow-up task
+- Status: pending
+- Phase: PHASE-M1-002
+- Acceptance: AC-001
+- Verification class: unit
+- Dependencies: TASK-M1-001
+- Owned paths: src/example.py
+- Blocker: none
+- Resume condition: none
+"""
+            )
+        self.refresh_digests()
+        self.set_definition_field(change, "PHASE-M1-001", "Status", "awaiting-human-review")
+        self.set_definition_field(change, "PHASE-M1-002", "Status", "executing")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("phase-started-before-approval", result.stdout)
+
     def test_confirmed_decision_payload_edit_invalidates_confirmation(self) -> None:
         self.convert_to_standard_m1()
         state = self.root / "workflow-state.md"
@@ -657,6 +774,7 @@ Release and deployment are outside this implemented target.
         evidence = self.evidence_block("EVID-001", outcome="failed", freshness="stale")
         evidence += "\n" + self.evidence_block("EVID-002")
         self.write_acceptance(evidence)
+        self.set_definition_field(self.root / "change.md", "PHASE-M1-001", "Human review evidence", "EVID-002")
         result = self.run_validator("--strict")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -913,8 +1031,26 @@ Release and deployment are outside this implemented target.
 - Release revision: not-applicable
 - Deployed revision: not-applicable
 
+## PHASE-M2-001 — Implement and verify the stable value
+- Status: approved
+- Sequence: 1
+- Depends on: none
+- Goal: The stable value is observable through the public function.
+- Acceptance: AC-001
+- Tasks: TASK-M2-001
+- Verification checkpoint: Run the focused test and inspect the observed return value.
+- Checkpoint revision: sha256:{CANDIDATE}
+- Human review procedure: Inspect the focused assertion and observed return value.
+- Human review status: approved
+- Human reviewer: user
+- Human reviewed at: 2026-08-03T12:09:00Z
+- Human review revision: sha256:{CANDIDATE}
+- Human review evidence: EVID-001
+- Human review note: The phase checkpoint is approved.
+
 ## TASK-M2-001 — Implement the stable value
 - Status: completed
+- Phase: PHASE-M2-001
 - Acceptance: AC-001
 - Verification class: unit
 - Dependencies: none

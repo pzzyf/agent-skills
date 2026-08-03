@@ -69,6 +69,7 @@ Use zero-padded, initiative-local IDs:
 | Spike | `SPIKE-001` | Time-boxed question/evidence |
 | Decision | `DEC-001` | Chosen/rejected technical option |
 | Acceptance | `AC-001` | Verifiable contract outcome |
+| Phase | `PHASE-M1-001` | Ordered implementation chunk with a human gate |
 | Task | `TASK-M1-001` | Milestone-owned execution unit |
 | Evidence | `EVID-001` | One reproducible verification record |
 | Amendment | `AMD-001` | Versioned contract delta |
@@ -77,6 +78,7 @@ Define IDs in Markdown headings exactly, for example:
 
 ```markdown
 ## REQ-001 — Preserve existing user data
+### PHASE-M1-001 — Migration safety slice
 ### TASK-M1-001 — Add migration guard
 ### EVID-001 — Migration dry run
 ```
@@ -86,10 +88,32 @@ Reference IDs inline without redefining them. Never recycle a retired ID; preser
 Maintain this chain where applicable:
 
 ```text
-REQ/RISK → SPIKE/DEC → AC → TASK → EVID → review/acceptance
+REQ/RISK → SPIKE/DEC → AC → PHASE → TASK → EVID → phase review → milestone acceptance
 ```
 
-Every `AC-*` names at least one `REQ-*`. Every task names owned ACs. Every evidence record names its task and ACs.
+Every `AC-*` names at least one `REQ-*`. Every phase names its owned ACs and tasks. Every task names exactly one phase and its owned ACs. Every evidence record names its task and ACs.
+
+Every phase carries a human review contract and operational verdict:
+
+```markdown
+- Status: pending | executing | verifying | awaiting-human-review | approved | rejected | reopened
+- Sequence: <positive integer>
+- Depends on: <prior PHASE IDs or none>
+- Goal: <independently observable outcome>
+- Acceptance: <AC IDs>
+- Tasks: <TASK IDs>
+- Verification checkpoint: <commands/interactions and passing condition>
+- Checkpoint revision: <exact aggregate phase revision or pending>
+- Human review procedure: <reproducible steps and artifacts to inspect>
+- Human review status: pending | approved | rejected | invalidated
+- Human reviewer: <person/role or none>
+- Human reviewed at: <ISO-8601 or none>
+- Human review revision: <exact Checkpoint revision or pending>
+- Human review evidence: <current passing EVID IDs or pending>
+- Human review note: <verdict/feedback or pending>
+```
+
+The phase structure, checkpoint procedure, and human review procedure are normative plan content. Status, checkpoint revision, and verdict fields are mutable operational state. Only `approved` with a concrete human, timestamp, `Human review revision` equal to the exact frozen `Checkpoint revision`, current passing evidence covering every phase task, and a verdict note unlocks later phases. Later milestone reconciliation may update evidence candidate mappings without rewriting the preserved phase checkpoint revision.
 
 ## Workflow State
 
@@ -104,6 +128,7 @@ Keep exact top-level fields so the validator and a resumed agent can reconstruct
 - Workflow status: <state>
 - Technical options status: unassessed | awaiting-confirmation | confirmed | not-applicable
 - Current milestone: M1
+- Current phase: PHASE-M1-001 | none
 - Current task: TASK-M1-001 | none
 - Base revision: <sha/digest/unversioned/git:unborn>
 - Initial dirty paths: <paths/none>
@@ -140,7 +165,7 @@ Use `validate_traceability.py --print-digests` to produce the canonical `sha256:
 - Lite requirements as `Goal and Non-Goals` plus ordered `REQ-*` blocks;
 - each decision without status/confirmation-control fields, plus an ordered aggregate for significant options;
 - the specification without status/input-binding/option-confirmation fields;
-- each milestone's normative plan fields while excluding task status, blockers/resume conditions, execution checkboxes, and actual revision mappings.
+- each milestone's normative plan fields while excluding phase/task status, phase human-verdict metadata, task blockers/resume conditions, execution checkboxes, and actual revision mappings.
 
 Review digests are transitive. A specification review binds the canonical requirements digest plus the specification projection. A plan review binds requirements, the specification when present, and that milestone's normative plan projection. A code review binds all of those inputs plus the milestone candidate revision recorded in the plan. This means updating a self-reported revision field cannot preserve an old review after its real upstream input changes.
 
@@ -214,7 +239,7 @@ Every review record includes:
 
 For a code review, both repository fingerprints must equal the exact candidate revision for that milestone; equal-but-unrelated fingerprints do not establish which candidate was reviewed. When a milestone spans multiple plan files, they must all record the same candidate revision.
 
-Freeze normative contracts, not live bookkeeping. The normative plan projection contains milestone goal/constraints and each task's ID, acceptance ownership, dependencies, owned paths/change/interface scope, verification and effect checks, evidence method, side-effect/idempotency, cleanup, invalidation, and commit/checkpoint rule. Mutable operational fields are task `Status`, `Blocker`, `Resume condition`, execution checkboxes, diagnostic/history entries, and actual candidate/reviewed/accepted/release/deployed revisions. `workflow-state.md` is mutable control state and is never part of a normative contract digest. Lite applies the same section-scoped rule inside `change.md`: requirements confirmation binds only its requirements payload, and code/plan review binds only the normative milestone/task projection.
+Freeze normative contracts, not live bookkeeping. The normative plan projection contains milestone goal/constraints; each phase's ID, sequence, dependencies, goal, AC/task ownership, verification checkpoint procedure, and human review procedure; and each task's ID, phase, acceptance ownership, dependencies, owned paths/change/interface scope, verification and effect checks, evidence method, side-effect/idempotency, cleanup, invalidation, and commit/checkpoint rule. Mutable operational fields are task/phase `Status`, task blockers/resume conditions, phase checkpoint revision and human review status/reviewer/time/revision/evidence/note, execution checkboxes, diagnostic/history entries, and actual candidate/reviewed/accepted/release/deployed revisions. `workflow-state.md` is mutable control state and is never part of a normative contract digest. Lite applies the same section-scoped rule inside `change.md`: requirements confirmation binds only its requirements payload, and code/plan review binds only the normative milestone/phase/task projection.
 
 Operational updates do not invalidate a review. Any normative-field change requires an `AMD-*`, marks the active review `stale`, and creates a replacement review. Preserve the prior record under `reviews/history/<gate>-r<n>.md` with `Status: superseded` and reciprocal `Supersedes`/`Superseded by` links; keep the current active record at the canonical path such as `reviews/plan-review-M2.md`. Strict validation considers the canonical active records and rejects stale/superseded active gates.
 
@@ -289,6 +314,6 @@ Run strict validation before claiming the delivery target:
 python3 <skill-root>/scripts/validate_traceability.py docs/specs/<initiative> --strict
 ```
 
-Strict mode recomputes transitive confirmation/review digests and rejects an empty or broken `REQ → AC → TASK → EVID` chain, unconfirmed significant decisions, draft specs/plans, missing milestone-specific plan/review gates, code-review fingerprints that differ from the milestone candidate, duplicate authoritative fields, contradictory blockers, stale/non-passing evidence, broken adjacent-milestone revision continuity, mismatched workflow/plan/acceptance/release/deployed revisions, and deployed claims without matching authority, release evidence, or a reconciled operation ledger. It recognizes active CommonMark headings and fields with up to three leading spaces, opens Markdown without following symlinks, and redacts detected credential forms from diagnostics. The validator proves artifact consistency only; it does not replace the recorded runtime, security, review, or deployment evidence.
+Strict mode recomputes transitive confirmation/review digests and rejects an empty or broken `REQ → AC → PHASE → TASK → EVID` chain, phases without matching explicit human approval, unconfirmed significant decisions, draft specs/plans, missing milestone-specific plan/review gates, code-review fingerprints that differ from the milestone candidate, duplicate authoritative fields, contradictory blockers, stale/non-passing evidence, broken adjacent-milestone revision continuity, mismatched workflow/plan/acceptance/release/deployed revisions, and deployed claims without matching authority, release evidence, or a reconciled operation ledger. It recognizes active CommonMark headings and fields with up to three leading spaces, opens Markdown without following symlinks, and redacts detected credential forms from diagnostics. The validator proves artifact consistency only; it does not prove that a recorded reviewer was human or replace the recorded runtime, security, review, or deployment evidence.
 
-The validator checks profile layout, stable definitions, duplicate IDs, AC→REQ links, TASK→AC links, EVID→TASK/AC links, required evidence fields, task/evidence status consistency, review status, confirmation fields, unresolved placeholders, and common secret patterns. It cannot prove behavior, correctness, security, independence, or deployment. Treat its success only as traceability evidence.
+The validator checks profile layout, stable definitions, duplicate IDs, AC→REQ links, PHASE→TASK/AC links, TASK→PHASE/AC links, EVID→TASK/AC links, required evidence fields, task/evidence status consistency, per-phase human review metadata and evidence/revision binding, review status, confirmation fields, unresolved placeholders, and common secret patterns. It cannot prove behavior, correctness, reviewer identity, security, independence, or deployment. Treat its success only as traceability evidence.

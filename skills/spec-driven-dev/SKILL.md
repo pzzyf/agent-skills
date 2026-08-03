@@ -1,6 +1,6 @@
 ---
 name: spec-driven-dev
-description: "Use for greenfield products, cross-module features, risky small changes (authentication, security, migrations, data loss, external integrations, releases), or work explicitly requesting SOP/spec-driven/document-first development, autonomous verification, or evidence-backed delivery. Provides a risk-scaled pipeline with requirements and significant-option confirmation, pre-spec spikes, specifications, plans, strongest-applicable verification, independent reviews, traceable evidence, correction loops, and safe delivery. Do not use for low-risk trivial edits, pure refactors, or standalone research unless the user explicitly requests the workflow."
+description: "Use for greenfield products, cross-module features, risky small changes (authentication, security, migrations, data loss, external integrations, releases), or work explicitly requesting SOP/spec-driven/document-first development, autonomous verification, human-reviewed implementation phases, or evidence-backed delivery. Provides a risk-scaled pipeline with requirements and significant-option confirmation, pre-spec spikes, specifications, phased milestone plans, strongest-applicable verification, AI correction loops, mandatory per-phase human review, independent reviews, traceable evidence, and safe delivery. Do not use for low-risk trivial edits, pure refactors, or standalone research unless the user explicitly requests the workflow."
 ---
 
 # Spec-Driven Development
@@ -29,10 +29,11 @@ Adapt interpreter and paths to the environment. Inspect generated files before c
 
 - **Authority and scope:** obey platform constraints, current user instructions and confirmations, repository rules, requirements, spec, then plan. Stop and surface contradictions; never silently choose a lower-authority source.
 - **User gates when applicable:** treat an explicit request as requirements confirmation when it already fixes scope, non-goals, and acceptance; otherwise obtain confirmation. Confirm every significant technical option. If none exists, record `not-applicable` without manufacturing choices or a second question. A significant option changes architecture, data ownership, authentication, public interfaces, core external integrations, deployment topology, migration/lock-in risk, or feasibility. Do not ask about reversible tactical choices inside confirmed boundaries.
-- **Evidence-backed completion:** assign stable `REQ`, `DEC`, `AC`, `TASK`, and `EVID` IDs. A task is complete only when its applicable criteria have current strongest-available evidence. Passing tests alone is insufficient when runtime, API, visual, performance, migration, or operational effects exist.
+- **Evidence-backed completion:** assign stable `REQ`, `DEC`, `AC`, `PHASE`, `TASK`, and `EVID` IDs. A task is complete only when its applicable criteria have current strongest-available evidence. Passing tests alone is insufficient when runtime, API, visual, performance, migration, or operational effects exist.
+- **Human-reviewed implementation phases:** divide each milestone plan into ordered `PHASE-M<n>-*` chunks containing multiple tasks/steps. After AI completes every task and the phase checkpoint converges, set the phase to `awaiting-human-review`. Only explicit human approval may unlock the next phase; silence, requirements confirmation, AI/subagent review, or final milestone acceptance cannot substitute.
 - **No invented tests:** use red-green TDD for suitable behavior, a failing reproduction for defects, contract/build checks for configuration, interaction or screenshot evidence for UI, dry runs for migrations, and explicit question/evidence for spikes and docs. Never manufacture a meaningless failing unit test.
 - **No silent change:** if implementation contradicts a confirmed requirement, decision, spec, plan contract, or acceptance criterion, run the amendment protocol before affected implementation continues. Old review notes are never a substitute for reviewing the delta.
-- **No false finish:** `completed` means all applicable criteria are current and passing. Blocked, cancelled, stale, not-applicable, and explicitly accepted-risk states remain visibly distinct.
+- **No false finish:** a task is `completed` only when its applicable criteria are current and passing; a phase is `approved` only after explicit human review of its checkpoint and evidence. Blocked, cancelled, stale, not-applicable, awaiting-human-review, and explicitly accepted-risk states remain visibly distinct.
 - **No blind external retry:** before any non-idempotent external action, persist intent, operation ID/idempotency key, exact subject revision, pre-state, recovery procedure, expected effect, and recovery query. On resume, query state before retrying; a deployed claim requires a fully reconciled observed ledger entry.
 - **No assumed Git authority:** commits are optional policy, not gates. Protect initial dirty paths and index entries, stage only safe owned hunks, inspect staged diffs, and never use bulk staging, amend, reset, or destructive cleanup unless explicitly authorized. Pre-existing staged content or overlap with user-edited files forces `user-managed` or an explicitly authorized isolated worktree.
 - **No fake independence:** reviewers use a fresh isolated context with no author reasoning. Because filesystem read-only may be unenforceable, freeze and compare repository fingerprints and never run a writer concurrently with a reviewer. A code review's before/after fingerprints must both equal the milestone candidate.
@@ -45,7 +46,8 @@ Preflight → select rigor → frame requirements → user confirms requirements
 → pre-spec spikes for decision-blocking unknowns
 → user confirms significant options → specify → profile-required review
 → milestone plan → profile-required review
-→ execute each task {verify first → implement → effect check → fix ↺ → evidence}
+→ execute phase tasks {verify first → implement → effect check → fix ↺ → evidence}
+→ phase checkpoint → human reviews phase {reject → reopen phase tasks ↺ | approve → next phase}
 → crash-reconcilable task finalization → code review {reopen task ↺}
 → milestone/full regression {reopen task ↺} → acceptance → deliver
 ```
@@ -56,6 +58,7 @@ Persist `workflow-state.md` before implementation:
 
 - run ID, initiative root, rigor and rationale;
 - delivery target and explicit non-goals;
+- current milestone, phase, task, and the latest phase-gate verdict;
 - capabilities/authority for writes, network, dependency installation, browser/device, credentials, external APIs, production, deployment, and destructive actions;
 - Git presence, branch, base revision, initial dirty paths, owned paths, and `commit_policy: auto | checkpoint | user-managed`;
 - review availability, active resources, current state, retry/diagnostic count, blocker, and next safe action.
@@ -76,9 +79,9 @@ Present 2–3 viable options when they exist, compare evidence, costs, risks, lo
 
 ### 2–3. Specify, Review, and Plan
 
-Define technology-neutral behavior, state, interfaces, safety boundaries, failure behavior, milestones, and numbered `AC-*`. Map each AC to requirements. Plan `TASK-M<n>-*` with owned files, dependencies, test/verification strategy, runtime outcome checks, evidence method, cleanup, and side-effect/idempotency handling.
+Define technology-neutral behavior, state, interfaces, safety boundaries, failure behavior, milestones, and numbered `AC-*`. Map each AC to requirements. Keep one coherent plan per milestone, divide it into ordered `PHASE-M<n>-*` implementation chunks, and place multiple small `TASK-M<n>-*` tasks/steps inside each phase. Give every phase an independently observable checkpoint and human review procedure. Do not create disconnected plan files for each phase unless repository convention requires it.
 
-Freeze each artifact's normative contract projection by revision or content digest; keep task status, blockers, execution checkboxes, diagnostics, and actual revision mappings as explicitly mutable operational state. A Git commit is not required. Apply the profile's independent-review gates. Reviewers may inspect relevant source, manifests, ADRs, dependencies, and evidence, but receive no author conversation or intended answer.
+Freeze each artifact's normative contract projection by revision or content digest; keep phase/task status, phase verdict metadata, blockers, execution checkboxes, diagnostics, and actual revision mappings as explicitly mutable operational state. A Git commit is not required. Apply the profile's independent-review gates. Reviewers may inspect relevant source, manifests, ADRs, dependencies, and evidence, but receive no author conversation or intended answer.
 
 ### 4. Execute to Outcome Convergence
 
@@ -88,7 +91,9 @@ For each task:
 2. Make the smallest coherent implementation.
 3. Run targeted automated checks, then the actual applicable effect check. Diagnose and correct the responsible layer until every criterion is current and passing.
 4. Record `EVID-*` with requirement/AC/task links, outcome and freshness, an implementation-path content digest (not the not-yet-created commit), candidate mapping when reconciled, time, environment, commands and exit codes, expected/actual result, sanitized artifact paths and hashes, and invalidation conditions.
-5. Finalize in a crash-reconcilable order: `verification passes → evidence written → task marked completed → owned diff inspected → coherent state preserved`. Then create one code + state + evidence commit/checkpoint only when policy authorizes it. If that operation fails, resume reconciliation; do not repeat successful side effects.
+5. Mark the converged task `completed`, preserving evidence and a coherent owned diff. Continue the remaining tasks in the same phase according to their dependencies.
+6. When all phase tasks pass, run the phase's observable checkpoint, reconcile the phase evidence/candidate, set the phase to `awaiting-human-review`, and present a packet containing scope, diff, expected versus actual behavior, evidence, residual risks, and reproducible review steps. Pause before every later phase.
+7. On explicit human approval, record reviewer, time, exact phase revision, evidence IDs, and note; then set the phase to `approved` and unlock the next phase. On rejection, record feedback, set the phase to `reopened`, reopen affected tasks, and resume convergence. Any covered change after approval invalidates the phase approval.
 
 Later failures or changed covered inputs mark affected evidence `stale` and reopen owning tasks. Full details, recovery, amendment, review, and blocker rules live in [lifecycle-and-gates.md](references/lifecycle-and-gates.md).
 
@@ -102,7 +107,7 @@ Deliver directly when the recorded target is achieved. Deploy/release only when 
 
 ## Resume Protocol
 
-On every resumed session, read repository instructions, `workflow-state.md`, confirmed requirements/decisions, current spec and plan, amendments, acceptance evidence, Git/worktree state, and active external-operation records. Reconcile stable task IDs, commit trailers/checkpoints, evidence subject revisions, and actual external state before choosing the next safe action. Never resume merely from the first unchecked box or from conversation memory.
+On every resumed session, read repository instructions, `workflow-state.md`, confirmed requirements/decisions, current spec and plan, amendments, acceptance evidence, Git/worktree state, and active external-operation records. Reconcile the current phase gate, stable task IDs, commit trailers/checkpoints, evidence subject revisions, and actual external state before choosing the next safe action. Never enter a later phase merely from the first unchecked box or from conversation memory.
 
 ## Validation Gate
 

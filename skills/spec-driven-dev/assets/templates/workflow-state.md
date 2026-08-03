@@ -9,6 +9,7 @@
 - Workflow status: draft
 - Technical options status: {{TECHNICAL_OPTIONS_STATUS}}
 - Current milestone: M1
+- Current phase: none
 - Current task: none
 - Base revision: {{BASE_REVISION}}
 - Initial dirty paths: {{DIRTY_PATHS}}

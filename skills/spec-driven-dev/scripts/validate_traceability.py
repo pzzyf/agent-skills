@@ -15,10 +15,10 @@ from pathlib import Path, PurePosixPath
 
 
 ID_PATTERN = re.compile(
-    r"\b(?:REQ|RISK|SPIKE|DEC|AC|EVID|AMD)-\d{3}\b|\bTASK-M\d+-\d{3}\b"
+    r"\b(?:REQ|RISK|SPIKE|DEC|AC|EVID|AMD)-\d{3}\b|\b(?:PHASE|TASK)-M\d+-\d{3}\b"
 )
 DEFINITION_PATTERN = re.compile(
-    r"^ {0,3}(#{2,6})\s+((?:REQ|RISK|SPIKE|DEC|AC|EVID|AMD)-\d{3}|TASK-M[1-9]\d*-\d{3})\s+(?:—|-)\s+.+$",
+    r"^ {0,3}(#{2,6})\s+((?:REQ|RISK|SPIKE|DEC|AC|EVID|AMD)-\d{3}|(?:PHASE|TASK)-M[1-9]\d*-\d{3})\s+(?:—|-)\s+.+$",
     re.MULTILINE,
 )
 HEADING_PATTERN = re.compile(r"^ {0,3}(#{1,6})\s+.+$", re.MULTILINE)
@@ -62,6 +62,19 @@ ALLOWED_TASK_STATES = {
     "verifying",
     "fixing",
     "completed",
+    "reopened",
+    "blocked-permission",
+    "blocked-external",
+    "cancelled",
+    "accepted-risk",
+}
+ALLOWED_PHASE_STATES = {
+    "pending",
+    "executing",
+    "verifying",
+    "awaiting-human-review",
+    "approved",
+    "rejected",
     "reopened",
     "blocked-permission",
     "blocked-external",
@@ -510,6 +523,13 @@ def milestone_plan_projection(root: Path, profile: str, path: Path, content: str
             "Status",
             "Blocker",
             "Resume condition",
+            "Checkpoint revision",
+            "Human review status",
+            "Human reviewer",
+            "Human reviewed at",
+            "Human review revision",
+            "Human review evidence",
+            "Human review note",
         },
     )
     active = re.sub(r"(?m)^\s*-\s*\[[ xX]\].*(?:\n|\Z)", "", active)
@@ -662,6 +682,7 @@ def validate_workflow_state(
         "Workflow status",
         "Technical options status",
         "Current milestone",
+        "Current phase",
         "Current task",
         "Base revision",
         "Initial dirty paths",
@@ -781,6 +802,15 @@ def validate_state_reconciliation(
     strict: bool,
     issues: list[Issue],
 ) -> None:
+    current_phase = state_fields.get("Current phase", "none")
+    if current_phase != "none":
+        phase = definitions.get(current_phase)
+        if phase is None or not current_phase.startswith("PHASE-"):
+            add_issue(issues, "error", "invalid-current-phase", f"current phase is not defined: {current_phase}", state_path)
+        elif phase.fields.get("Status") == "approved":
+            add_issue(issues, "error", "approved-current-phase", f"approved phase remains current: {current_phase}", state_path)
+    if strict and current_phase != "none":
+        add_issue(issues, "error", "active-phase-at-delivery", f"strict delivery still has current phase: {current_phase}", state_path)
     current = state_fields.get("Current task", "none")
     if current != "none":
         definition = definitions.get(current)
@@ -972,6 +1002,7 @@ def validate_references(
 
     requirements = {key for key in known if key.startswith("REQ-")}
     acceptances = {key for key in known if key.startswith("AC-")}
+    phases = {key for key in known if key.startswith("PHASE-")}
     tasks = {key for key in known if key.startswith("TASK-")}
     linked_requirements: set[str] = set()
 
@@ -1003,8 +1034,67 @@ def validate_references(
         for identifier in sorted(requirements - linked_requirements):
             add_issue(issues, "error", "requirement-without-ac", f"{identifier} is not covered by any acceptance criterion", definitions[identifier].path)
 
+    for identifier in sorted(phases):
+        definition = definitions[identifier]
+        linked_tasks = {item for item in ids(definition.fields.get("Tasks", "")) if item.startswith("TASK-")}
+        linked_ac = {item for item in ids(definition.fields.get("Acceptance", "")) if item.startswith("AC-")}
+        if not linked_tasks:
+            add_issue(issues, "error", "phase-without-tasks", f"{identifier} does not own any tasks", definition.path)
+        if not linked_ac:
+            add_issue(issues, "error", "phase-without-ac", f"{identifier} does not link acceptance criteria", definition.path)
+        for task_id in linked_tasks:
+            task = definitions.get(task_id)
+            if task is not None:
+                task_ac = {item for item in ids(task.fields.get("Acceptance", "")) if item.startswith("AC-")}
+                if not task_ac <= linked_ac:
+                    add_issue(issues, "error", "phase-ac-mismatch", f"{identifier} does not own all acceptance criteria of {task_id}", definition.path)
+        state = definition.fields.get("Status", "")
+        if state not in ALLOWED_PHASE_STATES:
+            add_issue(issues, "error", "invalid-phase-state", f"{identifier} has invalid state {state!r}", definition.path)
+        sequence = definition.fields.get("Sequence", "")
+        if not re.fullmatch(r"[1-9]\d*", sequence):
+            add_issue(issues, "error", "invalid-phase-sequence", f"{identifier} needs a positive integer Sequence", definition.path)
+        if strict:
+            for field in ("Depends on", "Goal", "Verification checkpoint", "Human review procedure"):
+                if definition.fields.get(field, "").lower() in {"", "pending", "unknown"}:
+                    add_issue(issues, "error", "incomplete-phase", f"{identifier} needs a concrete {field}", definition.path)
+        human_status = definition.fields.get("Human review status", "")
+        if human_status and human_status not in {"pending", "approved", "rejected", "invalidated"}:
+            add_issue(issues, "error", "invalid-human-review-status", f"{identifier} has invalid human review status {human_status!r}", definition.path)
+        if strict or state == "approved":
+            if state != "approved" or human_status != "approved":
+                add_issue(issues, "error", "missing-human-phase-approval", f"{identifier} requires explicit human approval before a later phase can complete", definition.path)
+            reviewer = definition.fields.get("Human reviewer", "")
+            if reviewer.lower() in {"", "none", "pending", "unknown"}:
+                add_issue(issues, "error", "missing-human-reviewer", f"{identifier} needs a concrete human reviewer", definition.path)
+            if not ISO_TIME_PATTERN.match(definition.fields.get("Human reviewed at", "")):
+                add_issue(issues, "error", "invalid-human-review-time", f"{identifier} needs an ISO-8601 Human reviewed at timestamp", definition.path)
+            if not REVISION_PATTERN.match(definition.fields.get("Human review revision", "")):
+                add_issue(issues, "error", "invalid-human-review-revision", f"{identifier} needs an exact Human review revision", definition.path)
+            checkpoint_revision = definition.fields.get("Checkpoint revision", "")
+            if not REVISION_PATTERN.match(checkpoint_revision):
+                add_issue(issues, "error", "invalid-phase-checkpoint-revision", f"{identifier} needs an exact Checkpoint revision", definition.path)
+            if definition.fields.get("Human review revision", "") != checkpoint_revision:
+                add_issue(issues, "error", "human-review-revision-mismatch", f"{identifier} human review revision does not match its frozen checkpoint", definition.path)
+            review_evidence = {item for item in ids(definition.fields.get("Human review evidence", "")) if item.startswith("EVID-")}
+            if not review_evidence:
+                add_issue(issues, "error", "missing-human-review-evidence", f"{identifier} human approval must cite evidence", definition.path)
+            if definition.fields.get("Human review note", "").lower() in {"", "none", "pending", "unknown"}:
+                add_issue(issues, "error", "missing-human-review-note", f"{identifier} needs the human verdict or note", definition.path)
+
     for identifier in sorted(tasks):
         definition = definitions[identifier]
+        linked_phases = {item for item in ids(definition.fields.get("Phase", "")) if item.startswith("PHASE-")}
+        if len(linked_phases) != 1:
+            add_issue(issues, "error", "task-phase-count", f"{identifier} must link exactly one phase", definition.path)
+        for phase_id in linked_phases:
+            phase = definitions.get(phase_id)
+            if phase is not None and identifier not in ids(phase.fields.get("Tasks", "")):
+                add_issue(issues, "error", "phase-task-mismatch", f"{identifier} is not owned by linked {phase_id}", definition.path)
+            phase_match = re.fullmatch(r"PHASE-M([1-9]\d*)-\d{3}", phase_id)
+            task_match = re.fullmatch(r"TASK-M([1-9]\d*)-\d{3}", identifier)
+            if phase_match and task_match and phase_match.group(1) != task_match.group(1):
+                add_issue(issues, "error", "phase-task-milestone-mismatch", f"{identifier} and {phase_id} belong to different milestones", definition.path)
         linked = {item for item in ids(definition.fields.get("Acceptance", "")) if item.startswith("AC-")}
         if not linked:
             add_issue(issues, "error", "task-without-ac", f"{identifier} does not link acceptance criteria", definition.path)
@@ -1031,9 +1121,40 @@ def validate_references(
         if strict and state != "completed":
             add_issue(issues, "error", "task-not-completed", f"{identifier} is {state!r}, not completed", definition.path)
         if strict:
-            for field in ("Dependencies", "Owned paths"):
+            for field in ("Phase", "Dependencies", "Owned paths"):
                 if definition.fields.get(field, "").lower() in {"", "pending", "unknown"}:
                     add_issue(issues, "error", "incomplete-task", f"{identifier} needs a concrete {field}", definition.path)
+
+    if strict:
+        for identifier in sorted(tasks):
+            if not any(identifier in ids(definitions[phase_id].fields.get("Tasks", "")) for phase_id in phases):
+                add_issue(issues, "error", "task-without-phase", f"{identifier} is not owned by any phase", definitions[identifier].path)
+
+    phase_groups: dict[int, list[tuple[int, str, Definition]]] = {}
+    for identifier in phases:
+        match = re.fullmatch(r"PHASE-M([1-9]\d*)-\d{3}", identifier)
+        sequence = definitions[identifier].fields.get("Sequence", "")
+        if match and sequence.isdigit():
+            phase_groups.setdefault(int(match.group(1)), []).append((int(sequence), identifier, definitions[identifier]))
+    for milestone, group in phase_groups.items():
+        group.sort()
+        sequences = [item[0] for item in group]
+        if len(sequences) != len(set(sequences)):
+            add_issue(issues, "error", "duplicate-phase-sequence", f"milestone M{milestone} has duplicate phase sequence numbers")
+        if strict and sequences != list(range(1, len(group) + 1)):
+            add_issue(issues, "error", "noncontiguous-phase-sequence", f"milestone M{milestone} phases must be contiguous from sequence 1")
+        for index, (_, identifier, definition) in enumerate(group):
+            dependencies = {item for item in ids(definition.fields.get("Depends on", "")) if item.startswith("PHASE-")}
+            if index == 0:
+                if dependencies:
+                    add_issue(issues, "error", "first-phase-dependency", f"{identifier} must not depend on another phase in its milestone", definition.path)
+                continue
+            previous_id = group[index - 1][1]
+            previous = group[index - 1][2]
+            if previous_id not in dependencies:
+                add_issue(issues, "error", "nonserial-phase-plan", f"{identifier} must depend on prior {previous_id}", definition.path)
+            if definition.fields.get("Status") != "pending" and previous.fields.get("Status") != "approved":
+                add_issue(issues, "error", "phase-started-before-approval", f"{identifier} started before {previous_id} received human approval", definition.path)
 
 
 def evidence_is_passing(definition: Definition) -> bool:
@@ -1168,6 +1289,7 @@ def validate_coverage(
         groups = {
             "REQ": [item for item in definitions if item.startswith("REQ-")],
             "AC": [item for item in definitions if item.startswith("AC-")],
+            "PHASE": [item for item in definitions if item.startswith("PHASE-")],
             "TASK": [item for item in definitions if item.startswith("TASK-")],
             "EVID": [item for item in definitions if item.startswith("EVID-")],
         }
@@ -1237,6 +1359,20 @@ def validate_coverage(
                 covered = set().union(*(verification_classes(record.fields.get("Verification class", "")) for record in passing))
                 if not required <= covered:
                     add_issue(issues, "error", "missing-evidence-class", f"{identifier} lacks passing evidence classes: {', '.join(sorted(required - covered))}", definition.path)
+        if identifier.startswith("PHASE-"):
+            state = definition.fields.get("Status")
+            if strict or state == "approved":
+                owned_tasks = {item for item in ids(definition.fields.get("Tasks", "")) if item.startswith("TASK-")}
+                cited_ids = {item for item in ids(definition.fields.get("Human review evidence", "")) if item.startswith("EVID-")}
+                cited = [definitions[item] for item in cited_ids if item in definitions]
+                cited_tasks = {
+                    item
+                    for record in cited
+                    for item in ids(record.fields.get("Task", ""))
+                    if item.startswith("TASK-")
+                }
+                if not cited or any(not evidence_is_passing(record) for record in cited) or not owned_tasks <= cited_tasks:
+                    add_issue(issues, "error", "invalid-human-review-evidence", f"{identifier} human approval must cite current passing evidence covering every phase task", definition.path)
 
 
 def task_milestones(definitions: dict[str, Definition]) -> dict[int, list[Definition]]:

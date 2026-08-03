@@ -26,6 +26,8 @@ Treat a tiny authentication edit or a production/sensitive/destructive migration
 
 Honor an explicitly requested stricter profile. Do not silently choose a weaker profile than the risk signals or repository policy require.
 
+All profiles require an explicit human review after every implementation phase/checkpoint. A phase may contain multiple tasks and TDD steps; tasks do not each require a separate human pause. Rigor changes independent artifact/code review depth, not the phase gate. Each verdict must identify the exact phase and reviewed evidence revision before a later phase starts.
+
 ## Lite
 
 Use Lite only when all of these are true:
