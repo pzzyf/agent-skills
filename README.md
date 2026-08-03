@@ -6,7 +6,9 @@ Personal collection of [Agent Skills](https://agentskills.io) for coding agents 
 
 | Skill | What it does |
 |---|---|
-| [`spec-driven-dev`](./skills/spec-driven-dev) | Document-first delivery SOP: explore → requirements → spec (milestones + decision records) → review → per-milestone plans → review → chunked TDD → code review → acceptance. |
+| [`spec-driven-dev`](./skills/spec-driven-dev) | Risk-scaled, document-first delivery: preflight → confirmed requirements/options → pre-spec spikes → reviewed spec/plans → task-appropriate verification and correction loops → traceable evidence/reviews → precise implemented, release-ready, or deployed delivery. |
+
+`spec-driven-dev` provides Lite, Standard, and High-assurance profiles; stack-neutral domain adapters; reusable artifact templates; and scripts that safely scaffold initiatives and validate the `REQ → AC → TASK → EVID` chain, transitive review freshness, milestone revision continuity, and authorized deployment-ledger reconciliation.
 
 ## Install
 
@@ -26,10 +28,15 @@ npx skills add pzzyf/agent-skills --list
 ```
 skills/
 └── <skill-name>/
-    └── SKILL.md
+    ├── SKILL.md
+    ├── agents/          # Optional agent metadata
+    ├── references/      # Detailed contracts and domain adapters
+    ├── assets/          # Reusable templates
+    ├── scripts/         # Scaffolding and validation helpers
+    └── tests/           # Helper regression tests
 ```
 
-Each skill is a directory with a `SKILL.md` file containing YAML frontmatter (`name`, `description`) and Markdown instructions. The CLI auto-discovers skills under `skills/`.
+Each skill is a directory with a required `SKILL.md` containing YAML frontmatter (`name`, `description`) and Markdown instructions. Supporting directories are optional. The CLI auto-discovers skills under `skills/`.
 
 ## License
 
