@@ -20,19 +20,19 @@
 
 ## Phased Implementation Strategy
 
-[Keep one milestone plan. Divide it into ordered phases/chunks; each phase contains multiple typed tasks/steps and ends with an observable checkpoint plus a human review gate. Later phases stay locked until approval.]
+[Keep one milestone plan. Divide it into user-reviewable vertical slices; each phase contains multiple typed tasks/steps and ends with an observable checkpoint plus a human review gate. Do not bundle all core create/edit/state-change/delete/persistence/recovery flows into one catch-all phase. Destructive/data-loss, auth, migration, payment, and external side-effect behavior gets a dedicated gate unless the user explicitly approves a documented grouping. Later phases stay locked until approval.]
 
 ### PHASE-{{MILESTONE}}-001 — [Phase title]
 
 - Status: pending
 - Sequence: 1
 - Depends on: none
-- Goal: [independently observable phase outcome]
+- Goal: [independently observable capability the human can exercise through the real product surface]
 - Acceptance: AC-001
 - Tasks: TASK-{{MILESTONE}}-001
 - Verification checkpoint: [aggregate commands/interactions, visible expected result, and common failure signals]
 - Checkpoint revision: pending
-- Human review procedure: [short reproducible steps and exact artifacts the human must inspect]
+- Human review procedure: [short reproducible product steps, expected visible result, and exact evidence/artifacts the human must inspect]
 - Human review status: pending
 - Human reviewer: none
 - Human reviewed at: none

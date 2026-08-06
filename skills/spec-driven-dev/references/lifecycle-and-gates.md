@@ -138,6 +138,8 @@ Plan each milestone from its frozen spec revision. Divide it into ordered implem
 - define reproducible human review steps and the evidence/artifacts to inspect;
 - remain strictly serial with later phases; express genuinely parallel work as tasks inside one phase or as separately governed milestones.
 
+Choose phase boundaries by reviewable outcomes, not by repository layer or coding convenience. For user-facing CRUD/product work, separate independently reviewable critical journeys such as create/read, edit/state change, destructive actions, and persistence/recovery unless they are so tightly coupled that an earlier slice would be unusable. Destructive/data-loss, authentication/authorization, migration, payment, and external side-effect behavior gets a dedicated phase gate unless the user explicitly approves a documented grouping. Plan review must reject one catch-all implementation phase when multiple meaningful human checkpoints exist.
+
 Within each phase, give every task:
 
 - stable ID, state, owning acceptance criteria, dependencies, and owned paths;

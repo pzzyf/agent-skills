@@ -46,17 +46,17 @@
 - Base revision: {{BASE_REVISION}}
 - Pinning method: [Git revision or content digest]
 
-### PHASE-M1-001 — [Phase title]
+### PHASE-M1-001 — [User-reviewable capability slice]
 
 - Status: pending
 - Sequence: 1
 - Depends on: none
-- Goal: [independently observable phase outcome]
+- Goal: [independently observable capability the human can exercise through the real product surface]
 - Acceptance: AC-001
 - Tasks: TASK-M1-001
 - Verification checkpoint: [aggregate commands/interactions and visible passing result]
 - Checkpoint revision: pending
-- Human review procedure: [short reproducible steps and exact artifacts the human must inspect]
+- Human review procedure: [short reproducible product steps, expected visible result, and exact evidence/artifacts the human must inspect]
 - Human review status: pending
 - Human reviewer: none
 - Human reviewed at: none
