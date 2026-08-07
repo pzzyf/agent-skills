@@ -1,0 +1,4 @@
+interface:
+  display_name: "Push Reviewed Diff"
+  short_description: "Push reviewed changes to origin after approval"
+  default_prompt: "Use $push-reviewed-diff to push the current reviewed diff to origin after I confirm it is good."

@@ -7,6 +7,7 @@ Personal collection of [Agent Skills](https://agentskills.io) for coding agents 
 | Skill | What it does |
 |---|---|
 | [`spec-driven-dev`](./skills/spec-driven-dev) | Risk-scaled, document-first delivery: preflight → confirmed requirements/options → pre-spec spikes → reviewed spec/plans → task-appropriate verification and correction loops → traceable evidence/reviews → precise implemented, release-ready, or deployed delivery. |
+| [`push-reviewed-diff`](./skills/push-reviewed-diff) | After explicit user approval of the current diff, verify the scope, commit the reviewed changes if needed, push the current branch to origin without force, and confirm remote state. |
 
 `spec-driven-dev` provides Lite, Standard, and High-assurance profiles; stack-neutral domain adapters; reusable artifact templates; and scripts that safely scaffold initiatives and validate the `REQ → AC → TASK → EVID` chain, transitive review freshness, milestone revision continuity, and authorized deployment-ledger reconciliation.
 
