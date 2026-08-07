@@ -1,14 +1,14 @@
 ---
 name: push-reviewed-diff
-description: "Push the current branch's reviewed changes directly to origin after the user explicitly approves them. Use when the user has reviewed the current diff and asks to push/推送 to origin (e.g. 审核通过、没问题、直接推送), or when Codex must verify the diff to be pushed exactly matches what was reviewed, commit the reviewed changes if needed, push without force, and confirm the remote state. Do not use for opening pull requests, force-pushing, deploying, or pushing without explicit user approval."
+description: "Push the current branch's reviewed changes directly to origin as soon as the user explicitly approves the current diff. Use when the user has reviewed the current diff and gives approval (e.g. 审核通过、没问题、可以了), or when Codex must verify the diff to be pushed exactly matches what was reviewed, commit the reviewed changes if needed, push without force, and confirm the remote state. Do not use for opening pull requests, force-pushing, deploying, or pushing without explicit user approval."
 ---
 
 # Push Reviewed Diff
 
 ## Trigger and Approval
 
-- Trigger only when the user explicitly approves the current diff **and** asks to push it to origin. Examples: "审核完了，直接推到 origin" / "diff 没问题，推送吧".
-- "Reviewed" alone is not a push instruction; "push" alone is not approval of the current diff. Require both.
+- Trigger when the user explicitly approves the current diff; approval alone authorizes the push, with no separate push instruction needed. Examples: "审核通过" / "没问题" / "可以了".
+- Do not push without explicit approval; a bare "push/推送" request without review approval is not sufficient.
 - Do not create a PR, tag, deploy, or force-push as part of this workflow.
 
 ## Workflow
